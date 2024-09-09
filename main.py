@@ -1,21 +1,12 @@
-import os
-import glob
 from utils import extract_text_from_pdf, vectorize_documents, calculate_similarity, create_dataframe, \
-    save_dataframe_to_csv
+    save_dataframe_to_csv, get_cv_files, get_jd_file
 from summarizer import summarize_cv
-
-
-def get_cv_files(directory):
-    """
-    Retrieves all PDF files from the specified directory.
-    """
-    return glob.glob(os.path.join(directory, '*.pdf'))
 
 
 def main():
     # Set your directories
     cv_directory = 'dataset/cvs'  # Path to the directory containing CV PDFs
-    jd_path = 'dataset/jd'  # Path to the JD PDF
+    jd_directory = 'dataset/jd'  # Path to the directory containing the JD PDF
 
     # Get all CV files from the directory
     cv_files = get_cv_files(cv_directory)
@@ -23,8 +14,13 @@ def main():
     # Extract text from CVs
     cv_texts = [extract_text_from_pdf(cv_file) for cv_file in cv_files]
 
-    # Extract text from the JD PDF
-    jd_text = extract_text_from_pdf(jd_path)
+    # Get JD file and extract text
+    try:
+        jd_path = get_jd_file(jd_directory)
+        jd_text = extract_text_from_pdf(jd_path)
+    except Exception as e:
+        print(f"Error extracting text from JD in {jd_directory}: {e}")
+        return  # Exit if JD extraction fails
 
     # Summarize CVs
     cv_summaries = [summarize_cv(cv) for cv in cv_texts]
@@ -40,6 +36,6 @@ def main():
     df = create_dataframe(names, cv_summaries, similarities)
     save_dataframe_to_csv(df)
 
-
 if __name__ == "__main__":
     main()
+    print("DONE")

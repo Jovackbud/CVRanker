@@ -2,6 +2,7 @@ import pdfplumber
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
+import glob
 import pandas as pd
 
 
@@ -55,3 +56,21 @@ def save_dataframe_to_csv(df, output_path='output/output.csv'):
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, index=False)
+
+
+def get_cv_files(directory):
+    """
+    Retrieves all PDF files from the specified directory.
+    """
+    return glob.glob(os.path.join(directory, '*.pdf'))
+
+
+def get_jd_file(jd_directory):
+    """
+    Retrieves the single PDF file from the specified JD directory.
+    Throws an error if there are zero or more than one PDF file.
+    """
+    jd_files = glob.glob(os.path.join(jd_directory, '*.pdf'))
+    if len(jd_files) != 1:
+        raise ValueError(f"Expected exactly one JD PDF file in {jd_directory}, but found {len(jd_files)}.")
+    return jd_files[0]
