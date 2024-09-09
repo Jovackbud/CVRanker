@@ -1,61 +1,45 @@
-'''
-Imports
-'''
-import pdfplumber
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
-from sklearn.metrics.pairwise import cosine_similarity
-
-'''
-scrape CVs and JD into an iterable
-'''
-def extract_text_from_pdf(pdf_path):
-    with pdfplumber.open(pdf_path) as pdf:
-        text = ''
-        for page in pdf.pages:
-            text += page.extract_text()
-    return text
+import os
+import glob
+from utils import extract_text_from_pdf, vectorize_documents, calculate_similarity, create_dataframe, \
+    save_dataframe_to_csv
+from summarizer import summarize_cv
 
 
-'''
-set up gemini flask api and instantiate model
-'''
+def get_cv_files(directory):
+    """
+    Retrieves all PDF files from the specified directory.
+    """
+    return glob.glob(os.path.join(directory, '*.pdf'))
 
 
-'''
-Summarize Skills and Experiences using gemini and store in an iterable
-'''
+def main():
+    # Set your directories
+    cv_directory = 'dataset/cvs'  # Path to the directory containing CV PDFs
+    jd_path = 'dataset/jd'  # Path to the JD PDF
 
-'''
-vectorize the summary and train a  machine learning model, preferably Kmeans on the JD
-'''
-def vectorizer(cv_texts, jdtext):
-    # Vectorize the texts
-    vectorizer = TfidfVectorizer(stop_words='english')
-    X = vectorizer.fit_transform(cv_texts + [jd_text])
-    return X
+    # Get all CV files from the directory
+    cv_files = get_cv_files(cv_directory)
+
+    # Extract text from CVs
+    cv_texts = [extract_text_from_pdf(cv_file) for cv_file in cv_files]
+
+    # Extract text from the JD PDF
+    jd_text = extract_text_from_pdf(jd_path)
+
+    # Summarize CVs
+    cv_summaries = [summarize_cv(cv) for cv in cv_texts]
+
+    # Extract names from summaries
+    names = [summary.split('\n')[0].replace("## ", "") for summary in cv_summaries]
+
+    # Vectorize documents and calculate similarity
+    X = vectorize_documents(cv_texts, jd_text)
+    similarities = calculate_similarity(X)
+
+    # Create and save the DataFrame
+    df = create_dataframe(names, cv_summaries, similarities)
+    save_dataframe_to_csv(df)
 
 
-'''
-train a  machine learning model, preferably Kmeans on the JD
-'''
-def training(X):
-    # Apply K-Means clustering
-    kmeans = KMeans(n_clusters=2, random_state=42).fit(X)
-    return kmeans
-
-'''
-pass summary and name into a k mean of JD and classify
-'''
-def prediction(kmeans, X):
-    # Find the cluster of the JD
-    jd_cluster = kmeans.predict(X[-1])
-    # Rank CVs based on their distance to the JD cluster
-    distances = cosine_similarity(X[:-1], X[-1])
-    ranked_cvs = sorted(zip(cv_texts, distances), key=lambda x: x[1], reverse=True)
-    return jd_cluster, distances, ranked_cvs
-
-'''
-return name, summary and kmeans predictions as a tuple and/or data frame
-'''
-
+if __name__ == "__main__":
+    main()
