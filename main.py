@@ -1,6 +1,6 @@
-from utils import extract_text_from_pdf, vectorize_documents, calculate_similarity, create_dataframe, \
+from src.utils import extract_text_from_pdf, vectorize_documents, calculate_similarity, create_dataframe, \
     save_dataframe_to_csv, get_cv_files, get_jd_file
-from summarizer import summarize_cv
+from src.summarizer import summarize_cv
 
 
 def main():
@@ -35,6 +35,7 @@ def main():
     # Create and save the DataFrame
     df = create_dataframe(names, cv_summaries, similarities)
     save_dataframe_to_csv(df)
+
 
 if __name__ == "__main__":
     main()
