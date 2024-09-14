@@ -74,3 +74,9 @@ def get_jd_file(jd_directory):
     if len(jd_files) != 1:
         raise ValueError(f"Expected exactly one JD PDF file in {jd_directory}, but found {len(jd_files)}.")
     return jd_files[0]
+
+
+
+'''
+intend to use a better vectorizer or maybe embeddings later on
+'''
