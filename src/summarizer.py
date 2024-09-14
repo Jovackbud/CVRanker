@@ -11,7 +11,8 @@ genai.configure(api_key=api_key)
 
 model = genai.GenerativeModel(
     model_name="gemini-1.5-flash",
-    system_instruction="You are a hiring officer's personal assistant. You are experienced at the job."
+    system_instruction="You are a hiring officer's personal assistant. You are experienced at the job and well known "
+                       "for your concise two paragraph summary style of about 50 words for each paragraph."
 )
 
 
