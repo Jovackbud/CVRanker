@@ -1,6 +1,7 @@
-from src.utils import extract_text_from_pdf, vectorize_documents, calculate_similarity, create_dataframe, \
+from src.utils import extract_text_from_pdf, calculate_similarity, create_dataframe, \
     save_dataframe_to_csv, get_cv_files, get_jd_file
 from src.summarizer import summarize_cv
+import src.vectorizer as vectorizer
 
 
 def main():
@@ -29,7 +30,7 @@ def main():
     names = [summary.split('\n')[0].replace("## ", "") for summary in cv_summaries]
 
     # Vectorize documents and calculate similarity
-    X = vectorize_documents(cv_texts, jd_text)
+    X = vectorizer.embed_text(cv_texts, jd_text)
     similarities = calculate_similarity(X)
 
     # Create and save the DataFrame
