@@ -29,11 +29,11 @@ def vectorize_documents(cv_texts, jd_text):
     return X
 
 
-def calculate_similarity(X):
-    """
-    Calculates cosine similarity between the job description and CVs.
-    """
-    similarities = cosine_similarity(X[0], X[1:]).flatten() * 100  # Convert to percentage
+def calculate_similarity(cvs, jd):
+    similarities = []
+    for cv in cvs:
+        similarity = cosine_similarity(cv, jd).flatten() * 100  # Convert to percentage
+        similarities.append(similarity)
     return similarities
 
 

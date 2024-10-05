@@ -9,7 +9,7 @@ load_dotenv()
 api_key = os.getenv('google_ai_studio_key')
 genai.configure(api_key=api_key)
 
-model = genai.GenerativeModel(
+generator_model = genai.GenerativeModel(
     model_name="gemini-1.5-flash",
     system_instruction="You are a hiring officer's personal assistant. You are experienced at the job and well known "
                        "for your concise two paragraph summary style of about 50 words for each paragraph."
@@ -21,10 +21,27 @@ def summarize_cv(cv_text):
     Summarizes the skills and experiences in a CV using a generative model.
     """
     prompt = f""" The hiring officer wants you to help summarize the key skills and experiences of a CV an applicant 
-    submitted in two paragraphs. He plans to read your summary and make a decision to hire or not hire each applicant 
+    submitted in two paragraphs of 100 words in total. He plans to read your summary and make a decision to hire or not hire each applicant 
     respectively by comparing your summary of the applicant's skills and experiences with the Job description which 
     he has and was already advertised. Make the first line a heading with only applicants name. Be careful to not 
     miss any relevant experience or skill. This is the CV: {cv_text}
     """
-    response = model.generate_content(prompt)
+    response = generator_model.generate_content(prompt)
     return response.text
+
+
+embedding_model="models/text-embedding-004"
+def generate_embedding(text, model=embedding_model):
+    result = genai.embed_content(
+        model=model,
+        content=text,
+    )
+
+    return result['embedding']
+
+def document_embedding(summaries):
+    embeddings = []
+    for summary in summaries:
+        embedding = generate_embedding(summary)
+        embeddings.append(embedding)
+    return embeddings
