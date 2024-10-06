@@ -1,6 +1,7 @@
 import pdfplumber
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 import os
 import glob
 import pandas as pd
@@ -29,11 +30,25 @@ def vectorize_documents(cv_texts, jd_text):
     return X
 
 
-def calculate_similarity(cvs, jd):
-    similarities = []
-    for cv in cvs:
-        similarity = cosine_similarity(cv, jd).flatten() * 100  # Convert to percentage
-        similarities.append(similarity)
+def calculate_similarities(embeddings_list):
+    """
+    Calculate cosine similarities between CV embeddings and the JD embedding.
+
+    Parameters:
+    - embeddings_list (list of np.array): A list of embeddings where the last item is the JD embedding.
+
+    Returns:
+    - similarities (list of float): A list of similarity scores between each CV and the JD.
+    """
+    # The last item in the list is the JD embedding
+    jd_embedding = np.array(embeddings_list[-1]).reshape(1, -1)
+
+    # All other items are the CV embeddings
+    cv_embeddings = [np.array(cv_emb).reshape(1, -1) for cv_emb in embeddings_list[:-1]]
+
+    # Calculate cosine similarity between each CV and the JD
+    similarities = [cosine_similarity(cv_emb, jd_embedding)[0][0] for cv_emb in cv_embeddings]
+
     return similarities
 
 

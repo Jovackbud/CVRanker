@@ -1,7 +1,7 @@
-from src.utils import extract_text_from_pdf, calculate_similarity, create_dataframe, \
+from src.utils import extract_text_from_pdf, calculate_similarities, create_dataframe, \
     save_dataframe_to_csv, get_cv_files, get_jd_file
-from src.summarizer import summarize_cv, document_embedding
-from src.gemini_embedding import embed_multiple_documents
+from src.summarizer import summarize_cv
+from src.gemini_embedding import embed_multiple_documents, generate_embedding
 
 
 def main():
@@ -28,15 +28,13 @@ def main():
 
     # Extract names from summaries
     names = [summary.split('\n')[0].replace("## ", "") for summary in cv_summaries]
-    summary_dict = dict(zip(names, cv_summaries))
 
     # embed CVS & JD
-    cv_embeddings = document_embedding(summary_dict.values())
-    cv_embeddings_dict = dict(zip(names, cv_embeddings))
-    jd_embeddings = document_embedding(jd_text)
+    document = cv_summaries + [jd_text]
+    embeddings = embed_multiple_documents(document)
 
     # calculate similarities
-    similarities = calculate_similarity(cv_embeddings_dict.values(), jd_embeddings)
+    similarities = calculate_similarities(embeddings)
 
     # Create and save the DataFrame
     df = create_dataframe(names, cv_summaries, similarities)

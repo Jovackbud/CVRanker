@@ -33,15 +33,27 @@ def generate_embedding(text, model="models/text-embedding-004"):
 
 
 def embed_multiple_documents(documents, model="models/text-embedding-004"):
-    embeddings_dict = {}
+    """
+    Generates embeddings for a list of documents (e.g., CVs and JD).
+
+    Parameters:
+    - documents (list of str): A list of document strings to embed (e.g., CVs, JD).
+    - model (str): The model used for generating embeddings.
+
+    Returns:
+    - embeddings_list (list of np.array): A list of embeddings where the last item is the JD embedding.
+    """
+    embeddings_list = []
 
     for i, doc in enumerate(documents):
-        # Set a title for each document (e.g., "CV1", "CV2", "JD")
-        title = f"CV{i + 1}" if i < len(documents) - 1 else "Job Description"
+        # Generate embedding for each document
         embedding = generate_embedding(doc, model=model)
-        embeddings_dict[title] = embedding
 
-    return embeddings_dict
+        # Append the embedding to the list
+        embeddings_list.append(embedding)
+
+    return embeddings_list
+
 
 
 # Example usage

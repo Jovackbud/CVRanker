@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload CVs and JD</title>
+</head>
+<body>
+    <h1>Upload CVs and Job Description</h1>
+    <form method="post" enctype="multipart/form-data" action="/upload">
+        <label for="cv_files">Upload CVs (multiple allowed):</label>
+        <input type="file" name="cv_files" multiple><br><br>
+
+        <label for="jd_file">Upload Job Description:</label>
+        <input type="file" name="jd_file"><br><br>
+
+        <input type="submit" value="Upload and Process">
+    </form>
+</body>
+</html>

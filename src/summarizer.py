@@ -28,20 +28,3 @@ def summarize_cv(cv_text):
     """
     response = generator_model.generate_content(prompt)
     return response.text
-
-
-embedding_model="models/text-embedding-004"
-def generate_embedding(text, model=embedding_model):
-    result = genai.embed_content(
-        model=model,
-        content=text,
-    )
-
-    return result['embedding']
-
-def document_embedding(summaries):
-    embeddings = []
-    for summary in summaries:
-        embedding = generate_embedding(summary)
-        embeddings.append(embedding)
-    return embeddings
