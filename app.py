@@ -1,5 +1,6 @@
 from flask import Flask, request, render_template, redirect, url_for
 import os
+import pandas as pd  # Import pandas to handle CSV files
 from werkzeug.utils import secure_filename
 from main import main as process_files
 
@@ -14,13 +15,16 @@ app = Flask(__name__)
 app.config['CV_FOLDER'] = CV_FOLDER
 app.config['JD_FOLDER'] = JD_FOLDER
 
+
 # Helper function to check if file is PDF
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 @app.route('/')
 def upload_files():
     return render_template('upload.html')  # Create an upload.html page
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -48,16 +52,25 @@ def upload_file():
     # Redirect to the results page
     return redirect(url_for('results'))
 
+
 @app.route('/results')
 def results():
-    # Serve the output CSV
-    output_path = 'output.csv'
+    # Define the path to the output CSV file
+    output_path = 'output/output.csv'  # Adjusted for your CSV file location
+
+    # Check if the output file exists
     if os.path.exists(output_path):
-        with open(output_path, 'r') as f:
-            csv_data = f.read()
-        return render_template('results.html', csv_data=csv_data)  # Create a results.html page
+        # Read the CSV file
+        df = pd.read_csv(output_path)
+
+        # Convert the DataFrame to HTML
+        csv_data = df.to_html(classes='table table-striped')
+
+        # Render the HTML page with the CSV data
+        return render_template('results.html', csv_data=csv_data)
     else:
         return "No results available yet.", 400
+
 
 if __name__ == "__main__":
     app.run(debug=True)
