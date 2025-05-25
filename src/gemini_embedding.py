@@ -2,16 +2,22 @@
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
+from src import config
 
 # Load environment variables from .env file (for API key)
 load_dotenv()
 
 # Configure the generative AI API key
 api_key = os.getenv('google_ai_studio_key')
-genai.configure(api_key=api_key)
+if not api_key:
+    raise ValueError("API key for Gemini not found or empty. Please set the google_ai_studio_key environment variable.")
+try:
+    genai.configure(api_key=api_key)
+except Exception as e:
+    raise RuntimeError(f"Failed to configure Gemini API: {e}")
 
 
-def generate_embedding(text, model="models/text-embedding-004"):
+def generate_embedding(text, model=config.TEXT_EMBEDDING_MODEL):
     """
     Generates an embedding for the given text using Gemini API.
 
@@ -24,15 +30,17 @@ def generate_embedding(text, model="models/text-embedding-004"):
     Returns:
     - embedding (list): The embedding vector for the given text.
     """
-    result = genai.embed_content(
-        model=model,
-        content=text,
-    )
+    try:
+        result = genai.embed_content(
+            model=model,
+            content=text,
+        )
+        return result['embedding']
+    except Exception as e:
+        raise RuntimeError(f"Gemini embedding failed for text '{text[:50]}...': {e}")
 
-    return result['embedding']
 
-
-def embed_multiple_documents(documents, model="models/text-embedding-004"):
+def embed_multiple_documents(documents, model=config.TEXT_EMBEDDING_MODEL):
     """
     Generates embeddings for a list of documents (e.g., CVs and JD).
 
@@ -46,36 +54,16 @@ def embed_multiple_documents(documents, model="models/text-embedding-004"):
     embeddings_list = []
 
     for i, doc in enumerate(documents):
-        # Generate embedding for each document
-        embedding = generate_embedding(doc, model=model)
-
-        # Append the embedding to the list
-        embeddings_list.append(embedding)
-
+        try:
+            # Generate embedding for each document
+            embedding = generate_embedding(doc, model=model)
+            # Append the embedding to the list
+            embeddings_list.append(embedding)
+        except RuntimeError as e:
+            # Propagate the error or handle it (e.g., log and skip)
+            # For now, let's propagate it
+            raise RuntimeError(f"Failed to embed document {i+1}/{len(documents)} ('{doc[:50]}...'): {e}")
+        except Exception as e:
+            # Catch any other unexpected errors during embedding for a specific document
+            raise RuntimeError(f"Unexpected error embedding document {i+1}/{len(documents)} ('{doc[:50]}...'): {e}")
     return embeddings_list
-
-
-
-# Example usage
-def main():
-    # Example list of CVs and a job description
-    cv_texts = [
-        "John Doe has extensive experience in software development...",
-        "Jane Smith is a data scientist with expertise in machine learning...",
-        # Add more CV strings as needed
-    ]
-    jd_text = "Looking for a software engineer with experience in Python, machine learning, and cloud technologies."
-
-    # Combine CVs and JD into one list
-    documents = cv_texts + [jd_text]
-
-    # Generate embeddings
-    embeddings = embed_multiple_documents(documents)
-
-    # Output embeddings (trimmed for readability)
-    for title, embedding in embeddings.items():
-        print(f"{title} embedding: {str(embedding)}]")
-
-
-if __name__ == "__main__":
-    main()
