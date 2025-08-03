@@ -1,30 +1,33 @@
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
+# src/summarizer.py
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+# Import the fully configured variables from our config file
+from .config import GOOGLE_API_KEY, LLM_MODEL_NAME, SUMMARIZER_PROMPT_MESSAGES
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Configure the generative AI model
-api_key = os.getenv('google_ai_studio_key')
-genai.configure(api_key=api_key)
-
-generator_model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    system_instruction="You are a hiring officer's personal assistant. You are experienced at the job and well known "
-                       "for your concise two paragraph summary style of about 50 words for each paragraph."
+# 1. Initialize the Language Model using values from config
+llm = ChatGoogleGenerativeAI(
+    model=LLM_MODEL_NAME,
+    google_api_key=GOOGLE_API_KEY
 )
 
+# 2. Create the prompt template directly from the config
+prompt_template = ChatPromptTemplate.from_messages(
+    SUMMARIZER_PROMPT_MESSAGES  # <-- This is much cleaner
+)
 
-def summarize_cv(cv_text):
+# 3. Create the summarization chain
+output_parser = StrOutputParser()
+summarization_chain = prompt_template | llm | output_parser
+
+
+def summarize_cv(cv_text: str) -> str:
     """
-    Summarizes the skills and experiences in a CV using a generative model.
+    Summarizes the skills and experiences in a CV using a LangChain chain.
     """
-    prompt = f""" The hiring officer wants you to help summarize the key skills and experiences of a CV an applicant 
-    submitted in two paragraphs of 100 words in total. He plans to read your summary and make a decision to hire or not hire each applicant 
-    respectively by comparing your summary of the applicant's skills and experiences with the Job description which 
-    he has and was already advertised. Make the first line a heading with only applicants name. Be careful to not 
-    miss any relevant experience or skill. This is the CV: {cv_text}
-    """
-    response = generator_model.generate_content(prompt)
-    return response.text
+    try:
+        response = summarization_chain.invoke({"cv_text": cv_text})
+        return response
+    except Exception as e:
+        print(f"Error during summarization: {e}")
+        return "Error: Could not generate summary."

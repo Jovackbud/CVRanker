@@ -1,8 +1,31 @@
-pdfplumber~=0.11.4
-pandas~=2.0.3
-scikit-learn~=1.3.0
-python-dotenv~=0.21.0
-numpy~=1.24.3
-vertexai~=1.68.0
-flask~=2.2.2
-werkzeug~=2.2.3
+# FastAPI and its server
+fastapi
+uvicorn[standard]
+
+# For handling file uploads and forms
+python-multipart
+
+# For HTML templating (FastAPI doesn't include it by default)
+jinja2
+
+# Data handling
+pandas
+
+# PDF processing
+pdfplumber
+
+# Machine Learning and similarity calculation
+scikit-learn
+numpy
+
+# Google AI and LangChain
+langchain-google-genai
+langchain-core
+google-generativeai
+python-dotenv
+
+# For SecretStr
+pydantic
+
+# for rendering markdown in UI
+markdown2
