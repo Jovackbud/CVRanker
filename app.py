@@ -152,3 +152,11 @@ async def download_csv(results_json: str = Form(...)):
     except Exception as e:
         print(f"Error during CSV download: {e}")
         return HTMLResponse(content="<h2>Error: Could not generate CSV file.</h2>", status_code=500)
+    
+
+@app.get("/health", status_code=200)
+async def health_check():
+    """
+    Simple endpoint for the hosting platform to verify the app is live and healthy.
+    """
+    return {"status": "ok"}
