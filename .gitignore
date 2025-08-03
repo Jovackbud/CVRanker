@@ -1,3 +1,22 @@
-/.env
+# Environment variables
+.env
+venv/
+/venv/
+
+
+# Upload directories (for local testing)
 dataset/cvs/
 dataset/jd/
+temp/
+
+# Output directory
+output/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE and OS specific
+.idea/
+.vscode/
+.DS_Store
