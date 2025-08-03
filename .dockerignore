@@ -1,0 +1,33 @@
+# Git / Version Control
+.git
+.gitignore
+
+# Docker specific
+.dockerignore
+Dockerfile
+
+# Python virtual environment and cache
+.venv
+venv
+env
+*.pyc
+__pycache__/
+
+# Environment variables - CRITICAL for security
+.env
+*.env.*
+
+# IDE and OS specific files
+.vscode/
+.idea/
+.DS_Store
+
+# Documentation - Not needed by the running application
+README.md
+LICENSE
+*.md
+
+# Temporary upload/output folders from local testing
+dataset/
+output/
+temp/
