@@ -2,16 +2,15 @@
 FROM python:3.10-slim
 
 # Install WeasyPrint system dependencies before installing Python packages
-# Add fontconfig for better font handling with WeasyPrint
 RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     fontconfig \
-  && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user and group, and give them a home directory
+# Create a non-root user and group, and create its home directory
 RUN groupadd --system appgroup \
-  && useradd --system --create-home --gid appgroup appuser
+ && useradd --system --gid appgroup --create-home appuser
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -21,21 +20,23 @@ COPY requirements.txt .
 
 # Install dependencies. Use --no-cache-dir to keep the image size down.
 RUN pip install --no-cache-dir --upgrade pip \
-  && pip install --no-cache-dir --force-reinstall -r requirements.txt
+ && pip install --no-cache-dir --force-reinstall -r requirements.txt
 
-# Add Python user-base bin directory into PATH for all users
-ENV PATH="${PATH}:$(python -m site --user-base)/bin"
+# Add Python user-base bin to PATH for all users
+RUN echo "export PATH=$PATH:$(python -m site --user-base)/bin" >> /app/setup_env.sh \
+ && echo "source /app/setup_env.sh" >> /etc/profile \
+ && echo "source /app/setup_env.sh" >> /home/appuser/.bashrc
 
 # Copy the rest of the application code
 COPY . .
 
-# Ensure the application directory is owned by the non-root user
+# Ensure the application directory is owned by the appuser
 RUN chown -R appuser:appgroup /app
 
 # Switch to the non-root user
 USER appuser
 
-# Expose the port Uvicorn will run on
+# Expose the port uvicorn will run on.
 EXPOSE 8000
 
 # Command to run the application using Uvicorn
