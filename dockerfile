@@ -39,4 +39,4 @@ EXPOSE 8000
 # For production, consider increasing workers based on your DigitalOcean droplet specs.
 # For example, for a 4-CPU droplet, you might use --workers 4.
 # We'll start with a safe default and can adjust later.
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
