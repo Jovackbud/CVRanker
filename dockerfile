@@ -1,5 +1,5 @@
 # Use the official Python 3.10 image as the base
-FROM python:3.10-slim-buster
+FROM python:3.10-slim
 
 # Install WeasyPrint system dependencies before installing Python packages
 # Add fontconfig for better font handling with WeasyPrint
