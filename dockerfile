@@ -40,6 +40,3 @@ EXPOSE 8000
 
 # Command to run the application using Uvicorn
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-# Use the standard Uvicorn installation for better performance and features
-# Note: The 'standard' extra includes features like HTTP/2 support, which is useful
-# for production deployments.
