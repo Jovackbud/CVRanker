@@ -9,8 +9,9 @@ from .config import LLM_MODEL_NAME, SUMMARIZER_PROMPT_MESSAGES
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 # Specific Google API exceptions that are typically retryable
 from google.api_core.exceptions import ResourceExhausted, InternalServerError, ServiceUnavailable, DeadlineExceeded
-
-logging.basicConfig(level=logging.INFO)
+# --- Logging Configuration ---
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+logging.basicConfig(level=logging.DEBUG, format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 # Initialize the Language Model using values from config

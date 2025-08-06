@@ -1,4 +1,6 @@
 import os
+import tempfile
+import shutil
 import pandas as pd
 from fastapi import FastAPI, Request, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -16,9 +18,12 @@ from src.config import ALLOWED_EXTENSIONS, DATA_COLUMNS, MAX_FILE_SIZE_MB
 
 import logging
 
-# Configure basic logging (adjust for production as needed)
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# --- Logging Configuration ---
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+logging.getLogger('pdfminer').setLevel(logging.WARNING) 
 logger = logging.getLogger(__name__)
+logger.info("Logging configured. Root level set to INFO. Noisy libraries set to WARNING.")
 
 # --- FastAPI App Initialization ---
 app = FastAPI(title="CV Ranker API")
@@ -72,20 +77,42 @@ async def upload_and_process(
             logger.warning(f"CV file size exceeds limit: {cv.filename} ({cv.size} bytes)")
             return HTMLResponse(content=f"<h2>Error: One or more CV files exceed {MAX_FILE_SIZE_MB}MB limit. Please upload smaller files.</h2>", status_code=413)
 
+    # --- Temporary File Handling ---
+    temp_dir = None # Initialize temp_dir to None
     try:
+        # Create a temporary directory
+        temp_dir = tempfile.mkdtemp()
+        logger.info(f"Created temporary directory for uploads: {temp_dir}")
+
+        # Save JD file to temp directory
+        jd_filepath = os.path.join(temp_dir, jd_file.filename)
+        with open(jd_filepath, "wb") as buffer:
+            buffer.write(await jd_file.read())
+        await jd_file.close() # Close the UploadFile object
+
+        # Save CV files to temp directory
+        saved_cv_files = [] # Store paths for processing
+        original_filenames = []
+        for cv in valid_cv_files:
+            cv_filepath = os.path.join(temp_dir, cv.filename)
+            with open(cv_filepath, "wb") as buffer:
+                buffer.write(await cv.read())
+            saved_cv_files.append(cv_filepath)
+            original_filenames.append(cv.filename)
+            await cv.close() # Close the UploadFile object
+        
+        logger.info(f"Saved {len(saved_cv_files)} CVs and 1 JD to temporary directory.")
+
         # --- Processing Steps ---
         logger.info("Starting PDF text extraction for JD.")
-        jd_text = extract_text_from_pdf(jd_file.file)
+        # Now extract text from the saved file paths
+        jd_text = extract_text_from_pdf(jd_filepath) 
         logger.info("JD text extracted.")
 
         cv_texts = []
-        original_filenames = []
-        for cv in valid_cv_files:
-            logger.info(f"Extracting text from CV: {cv.filename}")
-            cv_texts.append(extract_text_from_pdf(cv.file))
-            original_filenames.append(cv.filename)
-            await cv.close()
-        await jd_file.close()
+        for cv_filepath in saved_cv_files:
+            logger.info(f"Extracting text from CV: {os.path.basename(cv_filepath)}")
+            cv_texts.append(extract_text_from_pdf(cv_filepath))
         logger.info(f"Extracted text from {len(cv_texts)} CVs.")
 
         # Step 3: Get raw summaries from the AI
@@ -99,20 +126,15 @@ async def upload_and_process(
         names = []
         clean_summaries = []
         for summary in raw_summaries:
-            # Split the summary into name and the rest of the text, at most once
             parts = summary.split('\n', 1)
-            
-            # Extract and clean the name
             name_part = parts[0]
             names.append(name_part.replace('*', '').replace('#', '').strip())
             
-            # If there's a summary part after the name, clean it. Otherwise, use an empty string.
             if len(parts) > 1:
                 summary_part = parts[1]
-                # Replace all newlines in the remaining summary with a space
                 clean_summaries.append(" ".join(summary_part.split()).strip())
             else:
-                clean_summaries.append("") # Handle cases where there might be no summary after the name
+                clean_summaries.append("")
         logger.info("Names and clean summaries extracted.")
 
         # Step 4b: And create HTML summaries for web/PDF display
@@ -139,7 +161,7 @@ async def upload_and_process(
         logger.info("Filtering and slicing DataFrame.")
         df_filtered = df.copy()
         if not df_filtered.empty:
-            score_column_name = DATA_COLUMNS["SCORE"] # Access DATA_COLUMNS from config
+            score_column_name = DATA_COLUMNS["SCORE"]
             df_filtered[score_column_name] = pd.to_numeric(df_filtered[score_column_name])
             df_filtered = df_filtered[df_filtered[score_column_name] >= min_score]
             df_filtered = df_filtered.head(max_results)
@@ -147,24 +169,18 @@ async def upload_and_process(
         logger.info("DataFrame filtered and sliced.")
 
         # Step 9: Prepare data for each output format
-        # a) For CSV: JSON from the clean, filtered DataFrame
         results_json = df_filtered.to_json(orient='records')
         
-        # b) For Web Page/PDF: Create a display DataFrame and insert the pre-formatted HTML summaries
         df_display = df_filtered.copy()
-        # We need to map the HTML summaries to the filtered results. A dictionary is perfect for this.
-        # We'll use the filename as a unique key.
         filename_to_html_summary = dict(zip(original_filenames, html_summaries))
-        summary_col_name = DATA_COLUMNS["SUMMARY"] # Access DATA_COLUMNS from config
-        filename_col_name = DATA_COLUMNS["FILENAME"] # Access DATA_COLUMNS from config
+        summary_col_name = DATA_COLUMNS["SUMMARY"]
+        filename_col_name = DATA_COLUMNS["FILENAME"]
         
-        # Ensure the filename_col_name exists in df_display before mapping
         if filename_col_name in df_display.columns:
             df_display[summary_col_name] = df_display[filename_col_name].map(filename_to_html_summary)
         else:
             logger.warning(f"Column '{filename_col_name}' not found in df_display for HTML summary mapping. HTML summaries might not be displayed.")
-            # As a fallback, you might want to create an empty summary column or handle this differently
-            df_display[summary_col_name] = "" # Or, handle the error as appropriate
+            df_display[summary_col_name] = ""
 
         results_html = df_display.to_html(classes='table table-striped', index=False, table_id='results-table', escape=False)
         logger.info("Results prepared for display.")
@@ -180,9 +196,17 @@ async def upload_and_process(
         )
 
     except Exception as e:
-        # --- UPDATED: Use logger.error for better error handling ---
         logger.error(f"An unexpected error occurred during upload and processing: {e}", exc_info=True)
-        return templates.TemplateResponse("error.html", {"request": request, "error_message": "An unexpected error occurred. Please try again or contact support if the issue persists."}, status_code=500)
+        # Return an error response. Consider using the error.html template here.
+        # For simplicity, we'll return an HTMLResponse, but ideally it would be a proper template.
+        return HTMLResponse(content="<h2>Error: An unexpected error occurred during processing.</h2>", status_code=500)
+
+    finally:
+        # Ensure the temporary directory is removed, even if errors occur
+        if temp_dir and os.path.exists(temp_dir):
+            logger.info(f"Cleaning up temporary directory: {temp_dir}")
+            shutil.rmtree(temp_dir)
+            logger.info("Temporary directory cleaned up.")
     
 
 @app.post("/download-csv")

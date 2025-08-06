@@ -2,29 +2,41 @@
 FROM python:3.10-slim-buster
 
 # Install WeasyPrint system dependencies before installing Python packages
+# Add fontconfig for better font handling with WeasyPrint
 RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
-RUN adduser --system --group appuser
-    
+# Create a non-root user and group
+RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
+
 # Set the working directory inside the container
 WORKDIR /app
-
-USER appuser
 
 # Copy the requirements file first to leverage Docker layer caching
 COPY requirements.txt .
 
-# Install dependencies
+# Install dependencies. Use --no-cache-dir to keep the image size down.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
+# This copies as root, which is fine before switching user.
 COPY . .
+
+# Ensure the application directory is owned by the appuser
+# This is important if your application needs to write files (e.g., temp files).
+RUN chown -R appuser:appgroup /app
+
+# Switch to the non-root user
+USER appuser
 
 # Expose the port uvicorn will run on.
 EXPOSE 8000
 
 # Command to run the application using Uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# For production, consider increasing workers based on your DigitalOcean droplet specs.
+# For example, for a 4-CPU droplet, you might use --workers 4.
+# We'll start with a safe default and can adjust later.
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
