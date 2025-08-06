@@ -19,7 +19,8 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install dependencies. Use --no-cache-dir to keep the image size down.
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --force-reinstall -r requirements.txt
 
 # Copy the rest of the application code
 # This copies as root, which is fine before switching user.
