@@ -22,6 +22,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --force-reinstall -r requirements.txt
 
+# Get the Python executable's bin directory and add it to the PATH
+RUN echo "export PATH=$PATH:$(python -m site --user-base)/bin" >> /app/setup_env.sh && \
+    echo "source /app/setup_env.sh" >> /etc/profile && \
+    echo "source /app/setup_env.sh" >> /home/appuser/.bashrc
+
+
+
 # Copy the rest of the application code
 # This copies as root, which is fine before switching user.
 COPY . .
