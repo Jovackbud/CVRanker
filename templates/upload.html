@@ -20,6 +20,13 @@
             width: 3rem;
             height: 3rem;
         }
+        /* Custom alert for JS validation */
+        .file-error-message {
+            color: #dc3545; /* Bootstrap danger red */
+            font-size: 0.875em;
+            margin-top: 0.25rem;
+            display: none; /* Hidden by default */
+        }
     </style>
 </head>
 <body>
@@ -35,14 +42,15 @@
                         <div class="mb-3">
                             <label for="jd_file" class="form-label"><strong>Job Description (Single PDF)</strong></label>
                             <input class="form-control" type="file" id="jd_file" name="jd_file" accept=".pdf" required>
+                            <div id="jd-file-error" class="file-error-message"></div>
                         </div>
                         <div>
                             <label for="cv_files" class="form-label"><strong>CVs (Multiple PDFs)</strong></label>
                             <input class="form-control" type="file" id="cv_files" name="cv_files" accept=".pdf" multiple required>
+                            <div id="cv-files-error" class="file-error-message"></div>
                         </div>
                     </fieldset>
                     
-                    <!-- NEW: Filtering and Sorting Options -->
                     <fieldset class="mb-4">
                         <legend class="h5">2. Set Options</legend>
                         <div class="row">
@@ -60,12 +68,12 @@
                     </fieldset>
                     
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">Analyze and Rank</button>
+                        <button type="submit" class="btn btn-primary btn-lg" id="submit-button">Analyze and Rank</button>
                     </div>
                 </form>
                 
                 <!-- Loading indicator, hidden by default -->
-                <div id="loading-indicator" class="text-center mt-4" style="display: none;">
+                <div id="loading-indicator" class="text-center mt-4" style="display: none;" aria-live="polite" aria-atomic="true">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
@@ -79,9 +87,98 @@
     </div>
 
     <script>
-        document.getElementById('upload-form').addEventListener('submit', function() {
-            document.getElementById('upload-form').style.display = 'none';
-            document.getElementById('loading-indicator').style.display = 'block';
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadForm = document.getElementById('upload-form');
+            const submitButton = document.getElementById('submit-button');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const jdFileInput = document.getElementById('jd_file');
+            const cvFilesInput = document.getElementById('cv_files');
+            const jdFileError = document.getElementById('jd-file-error');
+            const cvFilesError = document.getElementById('cv-files-error');
+
+            // --- Client-side file size validation (Matches server-side 20MB from src/config.py) ---
+            const MAX_FILE_SIZE_MB = 20; 
+            const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+            function validateFiles() {
+                let isValid = true;
+
+                // Clear previous errors
+                jdFileError.style.display = 'none';
+                cvFilesError.style.display = 'none';
+
+                // Validate JD file
+                if (jdFileInput.files.length > 0) {
+                    const jdFile = jdFileInput.files[0];
+                    if (jdFile.size > MAX_FILE_SIZE_BYTES) {
+                        jdFileError.textContent = `File "${jdFile.name}" exceeds the ${MAX_FILE_SIZE_MB}MB limit.`;
+                        jdFileError.style.display = 'block';
+                        isValid = false;
+                    }
+                } else {
+                    // This case is covered by 'required' attribute, but good for explicit validation
+                    jdFileError.textContent = "Please select a Job Description file.";
+                    jdFileError.style.display = 'block';
+                    isValid = false;
+                }
+
+                // Validate CV files
+                if (cvFilesInput.files.length === 0) {
+                    cvFilesError.textContent = "Please select at least one CV file.";
+                    cvFilesError.style.display = 'block';
+                    isValid = false;
+                } else {
+                    for (let i = 0; i < cvFilesInput.files.length; i++) {
+                        const cvFile = cvFilesInput.files[i];
+                        if (cvFile.size > MAX_FILE_SIZE_BYTES) {
+                            cvFilesError.textContent = `One or more CV files exceed the ${MAX_FILE_SIZE_MB}MB limit.`;
+                            cvFilesError.style.display = 'block';
+                            isValid = false;
+                            break; // Stop checking further CVs if one is too large
+                        }
+                    }
+                }
+                return isValid;
+            }
+
+            uploadForm.addEventListener('submit', function(event) {
+                // Prevent default submission initially to run client-side validation
+                event.preventDefault(); 
+
+                if (!validateFiles()) {
+                    // If validation fails, do not submit the form
+                    return;
+                }
+
+                // If validation passes, proceed with showing loading indicator and submitting
+                submitButton.disabled = true; // Disable button to prevent double clicks
+                submitButton.textContent = 'Processing...'; // Change button text
+                submitButton.classList.add('btn-secondary'); // Visual feedback
+                submitButton.classList.remove('btn-primary'); // Visual feedback
+                uploadForm.style.display = 'none';
+                loadingIndicator.style.display = 'block';
+
+                // Now, submit the form programmatically after UX updates
+                this.submit(); 
+            });
+
+            // Optional: Re-enable button and hide spinner if user navigates back (browser back button)
+            // This is good for user experience if they use the back button.
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted) { // Check if the page is loaded from cache
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Analyze and Rank';
+                    submitButton.classList.remove('btn-secondary');
+                    submitButton.classList.add('btn-primary');
+                    uploadForm.style.display = 'block';
+                    loadingIndicator.style.display = 'none';
+                    jdFileError.style.display = 'none';
+                    cvFilesError.style.display = 'none';
+                    // Clear file inputs on back navigation for a fresh state
+                    jdFileInput.value = ''; 
+                    cvFilesInput.value = '';
+                }
+            });
         });
     </script>
 </body>

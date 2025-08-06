@@ -6,28 +6,26 @@
     <title>CV Ranker | Results</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            background-color: #f8f9fa;
+        body { background-color: #f8f9fa; }
+        .container { max-width: 90%; }
+        .table-container { 
+            margin-top: 2rem; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+            overflow-x: auto; /* For horizontal scrolling if table is too wide */
+            max-height: 70vh; /* Limit vertical height to prevent table from consuming entire screen */
+            overflow-y: auto; /* For vertical scrolling if table is too long */
         }
-        .container {
-            max-width: 90%;
-        }
-        .table-container {
+        #results-table th { background-color: #0d6efd; color: white; }
+        #results-table { font-size: 0.9rem; }
+        .action-buttons { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; }
+        .no-results-message {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff3cd; /* Bootstrap warning light */
+            border: 1px solid #ffecb5; /* Bootstrap warning border */
+            border-radius: .25rem;
             margin-top: 2rem;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        #results-table th {
-            background-color: #0d6efd;
-            color: white;
-        }
-        #results-table {
-            font-size: 0.9rem;
-        }
-        .action-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 1rem; /* Adds space between buttons */
-            margin-top: 2rem;
+            color: #664d03; /* Bootstrap warning dark text */
         }
     </style>
 </head>
@@ -41,28 +39,96 @@
             {{ results_data|safe }}
         </div>
 
+        <!-- NEW: Empty Results Message -->
+        <div id="no-results-found" class="no-results-message" style="display: none;">
+            <p>No candidates found matching your criteria (e.g., minimum score, max results). Please adjust your settings and try again.</p>
+        </div>
+
         <div class="action-buttons">
-            <!-- Button to go back remains a simple link -->
             <a href="/" class="btn btn-primary btn-lg">Analyze New Batch</a>
             
-            <!-- NEW: The Download button is now part of a form -->
-            <form action="/download" method="post">
-                <!-- 
-                    This hidden input holds the clean JSON data.
-                    When the form is submitted, this data is sent to the /download endpoint.
-                    The 'e' filter escapes the content, making it safe for an HTML attribute.
-                -->
+            <form action="/download-csv" method="post" id="download-csv-form">
                 <input type="hidden" name="results_json" value="{{ results_json|e }}">
-                
-                <button type="submit" class="btn btn-success btn-lg">Download as CSV</button>
+                <button type="submit" class="btn btn-success btn-lg" id="download-csv-button">Download as CSV</button>
+            </form>
+            
+            <form action="/download-pdf" method="post" id="download-pdf-form">
+                <input type="hidden" name="results_json" value="{{ results_json|e }}">
+                <button type="submit" class="btn btn-info btn-lg" id="download-pdf-button">Download as PDF</button>
             </form>
         </div>
 
         <footer class="text-center mt-5 text-muted">
-            <p>© 2025 CV Ranking Assistant</p>
+            <p>&copy; 2025 CV Ranking Assistant</p>
         </footer>
     </div>
-    
-    <!-- NO MORE JAVASCRIPT NEEDED FOR THE DOWNLOAD! -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const resultsTable = document.getElementById('results-table');
+            const noResultsMessage = document.getElementById('no-results-found');
+            const downloadCsvButton = document.getElementById('download-csv-button');
+            const downloadPdfButton = document.getElementById('download-pdf-button');
+
+            let hasResults = false;
+            if (resultsTable) {
+                // Check if the table body has any rows (excluding potential header rows within tbody if any)
+                // More robust check: look for actual data rows (tr elements that are not part of a thead)
+                const dataRows = resultsTable.querySelectorAll('tbody tr');
+                if (dataRows.length > 0) {
+                    hasResults = true;
+                }
+            } 
+            
+            if (!hasResults) {
+                // If there are no results, hide the table and show the message
+                if (resultsTable) {
+                    resultsTable.style.display = 'none';
+                }
+                noResultsMessage.style.display = 'block';
+                // Disable download buttons
+                downloadCsvButton.disabled = true;
+                downloadPdfButton.disabled = true;
+                downloadCsvButton.textContent = 'No Results to Download';
+                downloadPdfButton.textContent = 'No Results to Download';
+                downloadCsvButton.classList.remove('btn-success');
+                downloadCsvButton.classList.add('btn-secondary');
+                downloadPdfButton.classList.remove('btn-info');
+                downloadPdfButton.classList.add('btn-secondary');
+            }
+
+            // Prevent double submission on download buttons
+            document.getElementById('download-csv-form').addEventListener('submit', function() {
+                downloadCsvButton.disabled = true;
+                downloadCsvButton.textContent = 'Generating CSV...';
+                downloadCsvButton.classList.add('btn-secondary');
+                downloadCsvButton.classList.remove('btn-success');
+            });
+
+            document.getElementById('download-pdf-form').addEventListener('submit', function() {
+                downloadPdfButton.disabled = true;
+                downloadPdfButton.textContent = 'Generating PDF...';
+                downloadPdfButton.classList.add('btn-secondary');
+                downloadPdfButton.classList.remove('btn-info');
+            });
+
+            // Optional: Re-enable buttons if user navigates back to this page (browser back button)
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted) {
+                    if (hasResults) { // Only re-enable if there were results initially
+                        downloadCsvButton.disabled = false;
+                        downloadCsvButton.textContent = 'Download as CSV';
+                        downloadCsvButton.classList.remove('btn-secondary');
+                        downloadCsvButton.classList.add('btn-success');
+
+                        downloadPdfButton.disabled = false;
+                        downloadPdfButton.textContent = 'Download as PDF';
+                        downloadPdfButton.classList.remove('btn-secondary');
+                        downloadPdfButton.classList.add('btn-info');
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>

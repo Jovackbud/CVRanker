@@ -1,21 +1,27 @@
 import os
 from dotenv import load_dotenv
-from pydantic.types import SecretStr
 from . import prompts
 
+import logging # New import
+logger = logging.getLogger(__name__) # Initialize a logger for this module
+
 # --- Load Environment Variables ---
+# This makes the GOOGLE_API_KEY available for the application
 load_dotenv()
 
-# --- API Keys ---
-# Get the key from the environment
-google_api_key_str = os.getenv('google_ai_studio_key')
+# --- API Key Validation (Optional but Recommended) ---
+if not os.getenv('GOOGLE_API_KEY'):
+    # Log a critical error if the API key is missing. This is a deployment blocker.
+    logger.critical(
+        "API key 'GOOGLE_API_KEY' not found in environment variables. "
+        "Please check your .env file and your deployment environment settings. "
+        "Application cannot start without it."
+    )
+    raise ValueError(
+        "API key 'GOOGLE_API_KEY' not found in environment variables. "
+        "Please check your .env file and your deployment environment settings."
+    )
 
-# Check if the key exists
-if not google_api_key_str:
-    raise ValueError("API key 'google_ai_studio_key' not found in environment variables. Please check your .env file.")
-
-# Convert the plain string to a SecretStr for security
-GOOGLE_API_KEY: SecretStr = SecretStr(google_api_key_str) 
 
 # --- Model Configuration ---
 LLM_MODEL_NAME = "gemini-2.5-flash-lite"
@@ -29,6 +35,7 @@ SUMMARIZER_PROMPT_MESSAGES = [
 
 # --- Application & UI Configuration ---
 ALLOWED_EXTENSIONS = {'pdf'}
+MAX_FILE_SIZE_MB = 20 # Used for both frontend and backend validation
 
 # --- Data Structure Configuration ---
 DATA_COLUMNS = {

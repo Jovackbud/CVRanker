@@ -1,8 +1,18 @@
 # Use the official Python 3.10 image as the base
-FROM python:3.10
+FROM python:3.10-slim-buster
 
+# Install WeasyPrint system dependencies before installing Python packages
+RUN apt-get update && apt-get install -y \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN adduser --system --group appuser
+    
 # Set the working directory inside the container
 WORKDIR /app
+
+USER appuser
 
 # Copy the requirements file first to leverage Docker layer caching
 COPY requirements.txt .
@@ -14,10 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port uvicorn will run on.
-# Render provides the port number via the PORT environment variable.
-# We'll use 8000 as a standard default for FastAPI.
 EXPOSE 8000
 
 # Command to run the application using Uvicorn
-# It will listen on the port provided by Render's $PORT env var, or 8000.
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
