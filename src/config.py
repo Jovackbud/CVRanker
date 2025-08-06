@@ -1,13 +1,9 @@
 import os
-from dotenv import load_dotenv
 from . import prompts
 
 import logging # New import
 logger = logging.getLogger(__name__) # Initialize a logger for this module
-
-# --- Load Environment Variables ---
-# This makes the GOOGLE_API_KEY available for the application
-load_dotenv()
+logging.basicConfig(level=logging.INFO) # Set the logging level
 
 # --- API Key Validation (Optional but Recommended) ---
 if not os.getenv('GOOGLE_API_KEY'):
