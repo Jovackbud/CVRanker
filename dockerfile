@@ -7,10 +7,11 @@ RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     fontconfig \
-    && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user and group
-RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
+# Create a non-root user and group, and give them a home directory
+RUN groupadd --system appgroup \
+  && useradd --system --create-home --gid appgroup appuser
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -19,32 +20,26 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install dependencies. Use --no-cache-dir to keep the image size down.
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --force-reinstall -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+  && pip install --no-cache-dir --force-reinstall -r requirements.txt
 
-# Get the Python executable's bin directory and add it to the PATH
-RUN echo "export PATH=$PATH:$(python -m site --user-base)/bin" >> /app/setup_env.sh && \
-    echo "source /app/setup_env.sh" >> /etc/profile && \
-    echo "source /app/setup_env.sh" >> /home/appuser/.bashrc
-
-
+# Add Python user-base bin directory into PATH for all users
+ENV PATH="${PATH}:$(python -m site --user-base)/bin"
 
 # Copy the rest of the application code
-# This copies as root, which is fine before switching user.
 COPY . .
 
-# Ensure the application directory is owned by the appuser
-# This is important if your application needs to write files (e.g., temp files).
+# Ensure the application directory is owned by the non-root user
 RUN chown -R appuser:appgroup /app
 
 # Switch to the non-root user
 USER appuser
 
-# Expose the port uvicorn will run on.
+# Expose the port Uvicorn will run on
 EXPOSE 8000
 
 # Command to run the application using Uvicorn
-# For production, consider increasing workers based on your DigitalOcean droplet specs.
-# For example, for a 4-CPU droplet, you might use --workers 4.
-# We'll start with a safe default and can adjust later.
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use the standard Uvicorn installation for better performance and features
+# Note: The 'standard' extra includes features like HTTP/2 support, which is useful
+# for production deployments.
