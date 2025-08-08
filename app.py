@@ -7,7 +7,6 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 import io
 from typing import List
-import markdown2
 from weasyprint import HTML, CSS
 
 # Import your processing functions and config
@@ -21,7 +20,7 @@ import logging
 # --- Logging Configuration ---
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
-logging.getLogger('pdfminer').setLevel(logging.WARNING) 
+logging.getLogger('pdfminer').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.info("Logging configured. Root level set to INFO. Noisy libraries set to WARNING.")
 
@@ -49,8 +48,8 @@ async def upload_and_process(
     request: Request,
     cv_files: List[UploadFile] = File(...),
     jd_file: UploadFile = File(...),
-    min_score: int = Form(70),
-    max_results: int = Form(10)
+    min_score: int = Form(70), # Note: This is still 70, but upload.html has been updated to 50
+    max_results: int = Form(10) # Note: This is still 10, but upload.html has been updated to 3
 ):
     """
     Handles file upload, processing, filtering, and renders the results page.
@@ -106,7 +105,7 @@ async def upload_and_process(
         # --- Processing Steps ---
         logger.info("Starting PDF text extraction for JD.")
         # Now extract text from the saved file paths
-        jd_text = extract_text_from_pdf(jd_filepath) 
+        jd_text = extract_text_from_pdf(jd_filepath)
         logger.info("JD text extracted.")
 
         cv_texts = []
@@ -128,18 +127,35 @@ async def upload_and_process(
         for summary in raw_summaries:
             parts = summary.split('\n', 1)
             name_part = parts[0]
+            # Removing potential markdown characters from the name line for cleaner display
             names.append(name_part.replace('*', '').replace('#', '').strip())
             
             if len(parts) > 1:
                 summary_part = parts[1]
+                # Clean up whitespace in the summary part
                 clean_summaries.append(" ".join(summary_part.split()).strip())
             else:
-                clean_summaries.append("")
+                clean_summaries.append("") # Handle cases where there's no summary text after name
         logger.info("Names and clean summaries extracted.")
 
-        # Step 4b: And create HTML summaries for web/PDF display
-        html_summaries = [markdown2.markdown(s, extras=["break-on-newline"]) for s in raw_summaries]
-        logger.info("HTML summaries generated.")
+        # Step 4b: Prepare data for HTML display (replace \n with <br />)
+        html_display_summaries = []
+        for summary_text in raw_summaries:
+            # The LLM output is expected to have the name on the first line, followed by summary text.
+            # Split at the first newline to separate the name from the summary content.
+            parts = summary_text.split('\n', 1)
+            
+            if len(parts) > 1:
+                # parts[1] contains the actual summary text, which might have internal newlines.
+                summary_content = parts[1]
+                # Replace all newline characters with HTML <br /> tags for display.
+                html_summary = summary_content.replace('\n', '<br />')
+            else:
+                # If there's no newline after the name, just take the whole text and replace newlines
+                html_summary = summary_text.replace('\n', '<br />')
+                
+            html_display_summaries.append(html_summary)
+        logger.info("HTML display summaries prepared.")
 
         # Step 5: Embed documents (using the raw summaries is fine here)
         documents_to_embed = raw_summaries + [jd_text]
@@ -162,26 +178,39 @@ async def upload_and_process(
         df_filtered = df.copy()
         if not df_filtered.empty:
             score_column_name = DATA_COLUMNS["SCORE"]
-            df_filtered[score_column_name] = pd.to_numeric(df_filtered[score_column_name])
+            # Ensure the score column is numeric for comparison
+            df_filtered[score_column_name] = pd.to_numeric(df_filtered[score_column_name], errors='coerce')
+            # Remove any rows where score conversion failed
+            df_filtered.dropna(subset=[score_column_name], inplace=True)
+            
             df_filtered = df_filtered[df_filtered[score_column_name] >= min_score]
             df_filtered = df_filtered.head(max_results)
+            
+            # Format score for display after filtering and slicing
             df_filtered[score_column_name] = df_filtered[score_column_name].apply(lambda x: f"{x:.1f}")
         logger.info("DataFrame filtered and sliced.")
 
         # Step 9: Prepare data for each output format
         results_json = df_filtered.to_json(orient='records')
-        
+
         df_display = df_filtered.copy()
-        filename_to_html_summary = dict(zip(original_filenames, html_summaries))
+        
+        # Create a mapping from filename to the HTML-ready summary string
+        filename_to_html_display_summary = dict(zip(original_filenames, html_display_summaries)) 
+        
         summary_col_name = DATA_COLUMNS["SUMMARY"]
         filename_col_name = DATA_COLUMNS["FILENAME"]
         
         if filename_col_name in df_display.columns:
-            df_display[summary_col_name] = df_display[filename_col_name].map(filename_to_html_summary)
+            # Map the generated HTML display summaries into the DataFrame's summary column
+            df_display[summary_col_name] = df_display[filename_col_name].map(filename_to_html_display_summary)
         else:
             logger.warning(f"Column '{filename_col_name}' not found in df_display for HTML summary mapping. HTML summaries might not be displayed.")
+            # Fallback if the filename column is missing
             df_display[summary_col_name] = ""
 
+        # Convert the DataFrame with proper HTML summaries to an HTML table string.
+        # escape=False is crucial here to ensure the <br /> tags are rendered.
         results_html = df_display.to_html(classes='table table-striped', index=False, table_id='results-table', escape=False)
         logger.info("Results prepared for display.")
 
@@ -278,7 +307,7 @@ async def download_pdf(results_json: str = Form(...)):
 
         # Create a response that the browser will interpret as a PDF file download
         return StreamingResponse(
-            io.BytesIO(pdf_bytes), # Now Pylance knows pdf_bytes can't be None here
+            io.BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=cv_ranking_results.pdf"}
         )
